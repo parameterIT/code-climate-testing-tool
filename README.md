@@ -19,3 +19,10 @@ Execute through the `run.sh` script:
 ```
 
 Where `<GITHUB_SLUG>` is in the format `username/reponame`
+
+## Notes:
+
+Since the results are collected using CodeClimate's API their are some naming inconsistencies with Code Climate's web UI;
+
+- `method_complexity` is the same as Cognitive Complexity
+

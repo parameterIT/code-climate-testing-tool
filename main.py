@@ -53,7 +53,7 @@ def get_repo(github_slug: str):
 
 
 def get_latest_build_snapshot(github_slug: str):
-    repo = get_repo("parameterIT/test-data")
+    repo = get_repo(github_slug)
     latest_build_snapshot = repo["data"][0]["relationships"][
         "latest_default_branch_snapshot"
     ]["data"]["id"]
