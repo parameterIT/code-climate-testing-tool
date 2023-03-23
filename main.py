@@ -6,6 +6,7 @@ import time
 import csv
 
 from pathlib import Path
+from typing import Dict, List
 
 ACCESS_TOKEN = os.getenv("CODE_CLIMATE_TOKEN")
 
@@ -24,8 +25,12 @@ def main():
     github_slug = sys.argv[1]
 
     results = {}
+    locations = []
 
     for issue in get_issues(github_slug):
+        # print("--------------------")
+        # print(issue)
+        # print("--------------------")
         check_name = issue["attributes"]["check_name"]
         category = issue["attributes"]["categories"][0]
         try:
@@ -38,7 +43,13 @@ def main():
         except KeyError:
             results[category] = 1
 
-    write_to_csv(results, github_slug)
+        location = issue["attributes"]["location"]
+        # This fits with the .csv format: type, file, start, end
+        locations.append(
+            [check_name, location["path"], location["start_line"], location["end_line"]]
+        )
+
+    write_to_csv(results, locations, github_slug)
 
 
 def get_repo(github_slug: str):
@@ -73,7 +84,7 @@ def get_issues(github_slug: str):
     return r.json()["data"]
 
 
-def write_to_csv(results, src_root: str):
+def write_to_csv(results: Dict, locations: List, src_root: str):
     # See https://docs.python.org/3/library/time.html#time.strftime for table
     # explaining formattng
     # Format: YYYY-MM-DD_HH-MM-SS
@@ -81,7 +92,8 @@ def write_to_csv(results, src_root: str):
     file_name = Path(current_time + ".csv")
 
     _write_metadata(file_name, src_root)
-    _write_resutls(file_name, results)
+    _write_results(file_name, results)
+    _write_locations(file_name, locations)
 
 
 def _write_metadata(file_name: Path, src_root: str):
@@ -93,7 +105,7 @@ def _write_metadata(file_name: Path, src_root: str):
         writer.writerow(["actual code climate", src_root])
 
 
-def _write_resutls(file_name: Path, results):
+def _write_results(file_name: Path, results: Dict):
     file_location = Path("output") / Path("frequencies") / file_name
 
     with open(file_location, "w") as results_file:
@@ -101,6 +113,15 @@ def _write_resutls(file_name: Path, results):
         writer.writerow(["metric", "value"])
         for description, value in results.items():
             writer.writerow([description, value])
+
+
+def _write_locations(file_name: Path, locations: List):
+    file_location = Path("output") / Path("locations") / file_name
+
+    with open(file_location, "w") as locations_file:
+        writer = csv.writer(locations_file)
+        writer.writerow(["type", "file", "start", "end"])
+        writer.writerows(locations)
 
 
 if __name__ == "__main__":
