@@ -28,9 +28,6 @@ def main():
     locations = []
 
     for issue in get_issues(github_slug):
-        # print("--------------------")
-        # print(issue)
-        # print("--------------------")
         check_name = issue["attributes"]["check_name"]
         category = issue["attributes"]["categories"][0]
         try:
