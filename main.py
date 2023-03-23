@@ -38,7 +38,7 @@ def main():
         except KeyError:
             results[category] = 1
 
-    write_to_csv(results, github_slug.split("/")[0])
+    write_to_csv(results, github_slug)
 
 
 def get_repo(github_slug: str):
@@ -79,12 +79,25 @@ def write_to_csv(results, src_root: str):
     # Format: YYYY-MM-DD_HH-MM-SS
     current_time: str = time.strftime("%Y-%m-%d_%H-%M-%S", time.gmtime())
     file_name = Path(current_time + ".csv")
-    file_location = Path("output") / file_name
+
+    _write_metadata(file_name, src_root)
+    _write_resutls(file_name, results)
+
+
+def _write_metadata(file_name: Path, src_root: str):
+    file_location = Path("output") / Path("metadata") / file_name
+
+    with open(file_location, "w") as metadata_file:
+        writer = csv.writer(metadata_file)
+        writer.writerow(["qualitymodel", "src_root"])
+        writer.writerow(["actual code climate", src_root])
+
+
+def _write_resutls(file_name: Path, results):
+    file_location = Path("output") / Path("frequencies") / file_name
 
     with open(file_location, "w") as results_file:
         writer = csv.writer(results_file)
-        writer.writerow(["qualitymodel=actual code climate"])
-        writer.writerow([f"src_root={src_root}"])
         writer.writerow(["metric", "value"])
         for description, value in results.items():
             writer.writerow([description, value])

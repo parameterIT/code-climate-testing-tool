@@ -4,5 +4,7 @@ set -a
 source .env
 set +a
 
-mkdir -p output
-python main.py $1
+mkdir -p output/frequencies
+mkdir -p output/metadata
+
+poetry run python main.py $1
