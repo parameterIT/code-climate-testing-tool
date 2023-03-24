@@ -4,6 +4,7 @@ import requests
 import logging
 import time
 import csv
+import git
 
 from pathlib import Path
 from typing import Dict, List
@@ -22,8 +23,15 @@ def main():
         )
         exit(1)
 
+    git_folder: Path = Path("..") / Path("testing") / Path(".git")
+    tags = git.read_tags(git_folder)
+    git.iterate_over_tags(tags, work)
+
+
+def work(tag: str):
     github_slug = sys.argv[1]
 
+    block_while_build_is_running(github_slug)
     results = {}
     locations = []
 
@@ -46,7 +54,7 @@ def main():
             [check_name, location["path"], location["start_line"], location["end_line"]]
         )
 
-    write_to_csv(results, locations, github_slug)
+    write_to_csv(results, locations, github_slug, tag)
 
 
 def get_repo(github_slug: str):
@@ -81,25 +89,25 @@ def get_issues(github_slug: str):
     return r.json()["data"]
 
 
-def write_to_csv(results: Dict, locations: List, src_root: str):
+def write_to_csv(results: Dict, locations: List, src_root: str, tag: str):
     # See https://docs.python.org/3/library/time.html#time.strftime for table
     # explaining formattng
     # Format: YYYY-MM-DD_HH-MM-SS
     current_time: str = time.strftime("%Y-%m-%d_%H-%M-%S", time.gmtime())
     file_name = Path(current_time + ".csv")
 
-    _write_metadata(file_name, src_root)
+    _write_metadata(file_name, src_root, tag)
     _write_results(file_name, results)
     _write_locations(file_name, locations)
 
 
-def _write_metadata(file_name: Path, src_root: str):
+def _write_metadata(file_name: Path, src_root: str, tag: str):
     file_location = Path("output") / Path("metadata") / file_name
 
     with open(file_location, "w") as metadata_file:
         writer = csv.writer(metadata_file)
         writer.writerow(["qualitymodel", "src_root"])
-        writer.writerow(["actual code climate", src_root])
+        writer.writerow(["actual code climate", f"{src_root}-{tag}"])
 
 
 def _write_results(file_name: Path, results: Dict):
@@ -119,6 +127,27 @@ def _write_locations(file_name: Path, locations: List):
         writer = csv.writer(locations_file)
         writer.writerow(["type", "file", "start", "end"])
         writer.writerows(locations)
+
+
+def get_builds(github_slug):
+    repo_id = get_repo(github_slug)["data"][0]["id"]
+
+    target = f"https://api.codeclimate.com/v1/repos/{repo_id}/builds"
+    headers = {"Authorization": f"Token token={ACCESS_TOKEN}"}
+
+    r = requests.get(target, headers=headers)
+    return r.json()["data"]
+
+
+def block_while_build_is_running(github_slug):
+    should_check_builds = True
+    while should_check_builds == True:
+        builds = get_builds(github_slug)
+        should_check_builds = False
+        for build in builds:
+            if build["attributes"]["state"] == "running":
+                should_check_builds = True
+        time.sleep(5)
 
 
 if __name__ == "__main__":
