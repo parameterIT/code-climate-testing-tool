@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Dict, List
 
 ACCESS_TOKEN = os.getenv("CODE_CLIMATE_TOKEN")
+CODE_CLIMATE_REPO = "parameterIT/testing"
 
 
 def main():
@@ -23,19 +24,24 @@ def main():
         )
         exit(1)
 
-    git_folder: Path = Path("..") / Path("testing") / Path(".git")
+    git_folder: Path = Path("..") / Path("target") / Path(".git")
+
+    github_slug = sys.argv[1]
+    git.switch_repo(github_slug)
+
     tags = git.read_tags(git_folder)
     git.iterate_over_tags(tags, work)
 
 
 def work(tag: str):
+    # Assumes that GitHub slug has a "global scope" that can be referenced through sys.argv[1]
     github_slug = sys.argv[1]
 
-    block_while_build_is_running(github_slug)
+    block_while_build_is_running()
     results = {}
     locations = []
 
-    for issue in get_issues(github_slug):
+    for issue in get_issues():
         check_name = issue["attributes"]["check_name"]
         category = issue["attributes"]["categories"][0]
         try:
@@ -57,28 +63,28 @@ def work(tag: str):
     write_to_csv(results, locations, github_slug, tag)
 
 
-def get_repo(github_slug: str):
+def get_repo():
     """
     gets a repo from the github slug. github slug is a "username/reponame" format
     """
-    target = f"https://api.codeclimate.com/v1/repos?github_slug={github_slug}"
+    target = f"https://api.codeclimate.com/v1/repos?github_slug={CODE_CLIMATE_REPO}"
     headers = {"Authorization": f"Token token={ACCESS_TOKEN}"}
 
     r = requests.get(target, headers=headers)
     return r.json()
 
 
-def get_latest_build_snapshot(github_slug: str):
-    repo = get_repo(github_slug)
+def get_latest_build_snapshot():
+    repo = get_repo()
     latest_build_snapshot = repo["data"][0]["relationships"][
         "latest_default_branch_snapshot"
     ]["data"]["id"]
     return latest_build_snapshot
 
 
-def get_issues(github_slug: str):
-    repo_id = get_repo(github_slug)["data"][0]["id"]
-    snapshot_id = get_latest_build_snapshot(github_slug)
+def get_issues():
+    repo_id = get_repo()["data"][0]["id"]
+    snapshot_id = get_latest_build_snapshot()
 
     target = (
         f"https://api.codeclimate.com/v1/repos/{repo_id}/snapshots/{snapshot_id}/issues"
@@ -129,8 +135,8 @@ def _write_locations(file_name: Path, locations: List):
         writer.writerows(locations)
 
 
-def get_builds(github_slug):
-    repo_id = get_repo(github_slug)["data"][0]["id"]
+def get_builds():
+    repo_id = get_repo()["data"][0]["id"]
 
     target = f"https://api.codeclimate.com/v1/repos/{repo_id}/builds"
     headers = {"Authorization": f"Token token={ACCESS_TOKEN}"}
@@ -139,10 +145,10 @@ def get_builds(github_slug):
     return r.json()["data"]
 
 
-def block_while_build_is_running(github_slug):
+def block_while_build_is_running():
     should_check_builds = True
     while should_check_builds == True:
-        builds = get_builds(github_slug)
+        builds = get_builds()
         should_check_builds = False
         for build in builds:
             if build["attributes"]["state"] == "running":

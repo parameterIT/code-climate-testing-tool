@@ -10,9 +10,12 @@ def read_tags(git_folder: Path):
     return sorted(tags)
 
 
-def switch_repo(remote_url: str):
+def switch_repo(github_slug: str):
+    github_url = f"git@github.com:{github_slug}.git"
+
+    clone_repo(github_slug)
     subprocess.run(
-        ["cd ../testing && git remote add target git@github.com:pallets/flask.git"],
+        [f"cd ../testing && git remote add target {github_url}"],
         shell=True,
     )
     subprocess.run(
@@ -27,12 +30,20 @@ def switch_repo(remote_url: str):
     subprocess.run(["cd ../testing && git push -f"], shell=True)
 
 
+def clone_repo(github_slug: str):
+    github_url = f"git@github.com:{github_slug}.git"
+
+    subprocess.run("cd .. && rm -rf target", shell=True)
+    subprocess.run([f"cd .. && git clone {github_url} target"], shell=True)
+
+
 def reset_repo(commit: str):
     subprocess.run([f"cd ../testing && git reset --hard {commit}"], shell=True)
     subprocess.run(["cd ../testing && git push -f"], shell=True)
 
 
 def iterate_over_tags(tags: List, action_between_tags: Callable):
+    tags = tags[20:]
     for tag, commit in tags:
         reset_repo(commit)
         action_between_tags(tag)
