@@ -29,7 +29,9 @@ def main():
     github_slug = sys.argv[1]
     git.switch_repo(github_slug)
 
-    tags = git.read_tags(git_folder)
+    tags = git.read_tags()
+    print(tags)
+    print(tags)
     git.iterate_over_tags(tags, work)
 
 
